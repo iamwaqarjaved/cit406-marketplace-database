@@ -37,7 +37,10 @@ The whole database can be rebuilt from this repository with two SQL files. It is
 ├── schema.sql                  # Creates the "marketplace" schema: tables, keys, constraints, indexes
 ├── seed.sql                    # Loads sample data (safe to rerun)
 ├── docs/
-│   └── schema-visualizer.png   # Supabase Schema Visualizer screenshot
+│   ├── er-diagram.png          # ER diagram generated from the live schema, with referential actions
+│   └── schema-visualizer.png   # Screenshot of the Supabase Schema Visualizer
+├── .gitignore
+├── LICENSE                     # MIT
 └── README.md
 ```
 
@@ -52,42 +55,100 @@ Everything is created inside its own `marketplace` schema, so it never touches t
 
 ## Data model
 
+![ER diagram of the marketplace schema](docs/er-diagram.png)
+
+*Generated from the database catalog after running `schema.sql`. Each line runs from the parent (bar) to the child (crow's foot) and is labeled with its `ON DELETE / ON UPDATE` action: red for RESTRICT, green for CASCADE.*
+
+The same relationships as a Mermaid diagram:
+
 ```mermaid
 erDiagram
-    SELLER          ||--o{ PRODUCT         : lists
-    CATEGORY        ||--o{ PRODUCT         : categorizes
-    PRODUCT         ||--|{ PRODUCT_VARIANT : "has variant"
-    PRODUCT_VARIANT ||--o{ ORDER_ITEM      : "ordered as"
-    ORDER_HEADER    ||--|{ ORDER_ITEM      : contains
-    ORDER_HEADER    ||--o{ PAYMENT         : "paid via"
-    ADDRESS         ||--o{ ORDER_HEADER    : "ships to"
-    CUSTOMER        ||--o{ ADDRESS         : "has address"
-    CUSTOMER        ||--o{ REVIEW          : writes
-    PRODUCT         ||--o{ REVIEW          : about
+    SELLER ||--o{ PRODUCT : lists
+    CATEGORY ||--o{ PRODUCT : categorizes
+    PRODUCT ||--|{ PRODUCT_VARIANT : has_variant
+    PRODUCT_VARIANT ||--o{ ORDER_ITEM : ordered_as
+    ORDER_HEADER ||--|{ ORDER_ITEM : contains
+    ORDER_HEADER ||--o{ PAYMENT : paid_via
+    ADDRESS ||--o{ ORDER_HEADER : ships_to
+    CUSTOMER ||--o{ ADDRESS : has_address
+    CUSTOMER ||--o{ REVIEW : writes
+    PRODUCT ||--o{ REVIEW : about
 
-    CATEGORY        { int category_id PK "name unique" }
-    SELLER          { int seller_id PK "email unique" }
-    CUSTOMER        { int customer_id PK "email unique" }
-    ADDRESS         { int address_id PK
-                      int customer_id FK
-                      bool is_active }
-    PRODUCT         { int product_id PK
-                      int seller_id FK
-                      int category_id FK }
-    PRODUCT_VARIANT { int product_id PK,FK
-                      string sku PK }
-    ORDER_HEADER    { int order_id PK
-                      int address_id FK
-                      numeric total_amount }
-    ORDER_ITEM      { int order_item_id PK
-                      int order_id FK
-                      string sku FK
-                      numeric unit_price }
-    PAYMENT         { int payment_id PK
-                      int order_id FK }
-    REVIEW          { int review_id PK
-                      int customer_id FK
-                      int product_id FK }
+    CATEGORY {
+        int category_id PK
+        string category_name UK
+    }
+    SELLER {
+        int seller_id PK
+        string business_name
+        string contact_email UK
+        string phone
+        string approval_status
+    }
+    CUSTOMER {
+        int customer_id PK
+        string first_name
+        string last_name
+        string email UK
+        string phone
+    }
+    ADDRESS {
+        int address_id PK
+        int customer_id FK
+        string label
+        string street
+        string city
+        string state
+        string postal_code
+        boolean is_active
+    }
+    PRODUCT {
+        int product_id PK
+        int seller_id FK
+        int category_id FK
+        string product_name
+        string description
+        decimal base_price
+    }
+    PRODUCT_VARIANT {
+        int product_id PK, FK
+        string sku PK
+        string size
+        string color
+        int stock_quantity
+        decimal price_override
+    }
+    ORDER_HEADER {
+        int order_id PK
+        int address_id FK
+        timestamptz order_date
+        string status
+        decimal total_amount
+    }
+    ORDER_ITEM {
+        int order_item_id PK
+        int order_id FK
+        int product_id FK
+        string sku FK
+        int quantity
+        decimal unit_price
+    }
+    PAYMENT {
+        int payment_id PK
+        int order_id FK
+        decimal amount
+        timestamptz payment_date
+        string payment_method
+        string status
+    }
+    REVIEW {
+        int review_id PK
+        int customer_id FK
+        int product_id FK
+        int rating
+        string comment
+        timestamptz review_date
+    }
 ```
 
 | Table | Primary key | Alternate key (UNIQUE) | Holds |
@@ -238,7 +299,7 @@ HAVING o.total_amount <> SUM(i.quantity * i.unit_price);
 2. Change the schema dropdown (top left) from `public` to **`marketplace`**.
 3. Drag the tables apart until every relationship line is visible.
 
-A screenshot of this view is in [`docs/schema-visualizer.png`](docs/schema-visualizer.png).
+![Supabase Schema Visualizer showing the marketplace schema](docs/schema-visualizer.png)
 
 > The Table Editor only shows the `public` schema by default. Use its schema dropdown, or the SQL Editor, to browse `marketplace` tables.
 

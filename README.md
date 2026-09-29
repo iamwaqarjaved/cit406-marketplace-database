@@ -38,7 +38,6 @@ The whole database can be rebuilt from this repository with two SQL files. It is
 ├── seed.sql                    # Loads sample data (safe to rerun)
 ├── docs/
 │   ├── er-diagram.png          # ER diagram generated from the live schema, with referential actions
-│   └── schema-visualizer.png   # Screenshot of the Supabase Schema Visualizer
 ├── .gitignore
 ├── LICENSE                     # MIT
 └── README.md

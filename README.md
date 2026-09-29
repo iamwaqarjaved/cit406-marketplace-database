@@ -37,7 +37,11 @@ The whole database can be rebuilt from this repository with two SQL files. It is
 ├── schema.sql                  # Creates the "marketplace" schema: tables, keys, constraints, indexes
 ├── seed.sql                    # Loads sample data (safe to rerun)
 ├── docs/
-│   ├── er-diagram.png          # ER diagram generated from the live schema, with referential actions
+│   ├── er-diagram.png          # ER diagram of all tables and relationships
+│   ├── schema-visualizer.png   # Screenshot of the Supabase Schema Visualizer
+│   ├── build-1-schema.png      # schema.sql run in pgAdmin against Supabase
+│   ├── build-2-seed.png        # seed.sql run in pgAdmin against Supabase
+│   └── build-3-row-counts.png  # Row count per table after seeding
 ├── .gitignore
 ├── LICENSE                     # MIT
 └── README.md
@@ -56,7 +60,7 @@ Everything is created inside its own `marketplace` schema, so it never touches t
 
 ![ER diagram of the marketplace schema](docs/er-diagram.png)
 
-*Generated from the database catalog after running `schema.sql`. Each line runs from the parent (bar) to the child (crow's foot) and is labeled with its `ON DELETE / ON UPDATE` action: red for RESTRICT, green for CASCADE.*
+*Each line runs from the parent table (one) to the child table (many, crow's foot). The `ON DELETE` / `ON UPDATE` action on every relationship is listed in [Referential actions and business rules](#referential-actions-and-business-rules).*
 
 The same relationships as a Mermaid diagram:
 
@@ -291,6 +295,31 @@ HAVING o.total_amount <> SUM(i.quantity * i.unit_price);
 ```
 
 ---
+
+### Build evidence
+
+The screenshots below show this repository being built on the project's Supabase database from pgAdmin 4. Object Explorer lists the `marketplace` schema with its 10 tables.
+
+<details>
+<summary><b>1. <code>schema.sql</code> runs without errors</b></summary>
+
+![schema.sql executed in pgAdmin against Supabase](docs/build-1-schema.png)
+
+</details>
+
+<details>
+<summary><b>2. <code>seed.sql</code> loads the sample data and commits</b></summary>
+
+![seed.sql executed in pgAdmin against Supabase](docs/build-2-seed.png)
+
+</details>
+
+<details open>
+<summary><b>3. Row counts match the expected values above</b></summary>
+
+![Row count per table after running seed.sql](docs/build-3-row-counts.png)
+
+</details>
 
 ## View the schema diagram in Supabase
 

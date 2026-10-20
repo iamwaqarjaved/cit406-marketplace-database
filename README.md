@@ -22,9 +22,10 @@ This repository is the complete final release of the CIT 406 Database Design ter
 7. [Indexes and performance](#indexes-and-performance)
 8. [Security: roles and row-level security](#security-roles-and-row-level-security)
 9. [Referential actions and business rules](#referential-actions-and-business-rules)
-10. [Reset or remove the database](#reset-or-remove-the-database)
-11. [Troubleshooting](#troubleshooting)
-12. [Design notes](#design-notes)
+10. [Backup and restore](#backup-and-restore)
+11. [Reset or remove the database](#reset-or-remove-the-database)
+12. [Troubleshooting](#troubleshooting)
+13. [Design notes](#design-notes)
 
 ---
 
@@ -53,7 +54,9 @@ This repository is the complete final release of the CIT 406 Database Design ter
 ├── scripts/
 │   └── generate_data_dictionary.sql   # Regenerates docs/data-dictionary.md from the database
 ├── docs/
+│   ├── backup-restore.md              # pg_dump / pg_restore guide
 │   ├── data-dictionary.md             # Every table and column described
+│   ├── evidence/                      # Screenshots: Supabase rebuild, backup/restore
 │   ├── er-diagram.md                  # ERD (image + Mermaid)
 │   ├── er-diagram.png                 # ERD of the built schema (pgAdmin 4)
 │   └── module4-build/                 # Screenshots of the original Module 4 build
@@ -149,6 +152,8 @@ psql "$DATABASE_URL" -f build.sql
 
 ### Option B: pgAdmin 4 connected to Supabase
 
+**Quickest:** select the `postgres` database, open **Tools → PSQL Tool**, and type `\i /full/path/to/build.sql` (drag the file in from Finder or Explorer to paste its path). The Query Tool cannot run `build.sql` itself, so to use the Query Tool run the files one at a time:
+
 1. In Supabase, click **Connect** and copy the Session pooler host, port, database and user.
 2. In pgAdmin, right-click **Servers → Register → Server…**
    - **General → Name:** anything, e.g. `Marketplace (Supabase)`
@@ -219,6 +224,31 @@ The row counts printed at the end of `seed/seed.sql`:
 | app_user | 2 |
 
 `variant_audit` starts empty because the trigger only writes to it when stock or a price override changes; `seller_payout` starts empty because no payouts have been run yet.
+
+### Build evidence (Supabase, PostgreSQL 17.6)
+
+The repository was rebuilt on the project's Supabase database with `build.sql` using psql 18.4.
+
+<details>
+<summary><b>build.sql starts: migration 001 drops and recreates the schema</b></summary>
+
+![build.sql running in Terminal](docs/evidence/01a-build-start.png)
+
+</details>
+
+<details open>
+<summary><b>Build check: all 17 checks PASS</b></summary>
+
+![Row counts and 17 PASS build checks](docs/evidence/01d-build-check.png)
+
+</details>
+
+<details>
+<summary><b>pgAdmin 4: 13 tables, 2 views, 2 functions, 1 procedure, 1 trigger function</b></summary>
+
+![pgAdmin Object Explorer showing the marketplace schema](docs/evidence/02-pgadmin-tree.png)
+
+</details>
 
 ---
 
@@ -384,6 +414,25 @@ In the Supabase SQL Editor, run the failing examples one at a time: the editor s
 
 ---
 
+## Backup and restore
+
+`build.sql` rebuilds from source with the sample data. To keep the **current data**, use `pg_dump` and `pg_restore`, which come with pgAdmin 4. Full steps for macOS and Windows are in **[docs/backup-restore.md](docs/backup-restore.md)**.
+
+```bash
+# back up only this project's schema (custom format)
+pg_dump -h <host> -p 5432 -U <user> -d postgres -n marketplace -F c -f marketplace.backup -W
+
+# list what is inside the backup
+pg_restore -l marketplace.backup
+
+# restore after DROP SCHEMA marketplace CASCADE;
+pg_restore -h <host> -p 5432 -U <user> -d postgres --no-owner marketplace.backup -W
+```
+
+Then run `tests/00_verify_build.sql`: all 17 checks should say `PASS`. Roles are server-level and are not part of the dump (see the guide). The guide includes screenshots of a full backup → drop → restore → verify cycle run on Supabase.
+
+---
+
 ## Reset or remove the database
 
 - **Reload sample data only:** rerun `seed/seed.sql`. It empties every table (including the audit log and payouts) first.
@@ -409,6 +458,7 @@ In the Supabase SQL Editor, run the failing examples one at a time: the editor s
 | `permission denied to create role` | The login running the build cannot create roles. Use the Supabase `postgres` user or a superuser. |
 | `role "mp_viewer" cannot be dropped because some objects depend on it` | Drop the schema first (see [Reset](#reset-or-remove-the-database)). If the roles also hold privileges in another database, run `REASSIGN OWNED BY … ; DROP OWNED BY …;` there. |
 | A `SET ROLE` test returns rows for everyone, or the next test behaves oddly | The session is still in a test role. Run `RESET ROLE;` on its own; if pgAdmin shows *current transaction is aborted*, run `ROLLBACK;` then `RESET ROLE;`. |
+| `syntax error at or near "\"` when running `build.sql` in pgAdmin's Query Tool | `build.sql` uses psql commands (`\set`, `\ir`). Run it with psql, or in pgAdmin open **Tools → PSQL Tool** and type `\i /full/path/to/build.sql`. To use the Query Tool instead, run the files one by one in the [run order](#run-order). |
 | `psql: error: build.sql: … \ir` paths not found | Run psql from the repository folder, or pass the full path to `build.sql`; `\ir` resolves the other files relative to it. |
 | pgAdmin cannot connect to Supabase | Use the **Session pooler** host from **Connect**, set SSL mode to `require`, and check the password (reset it under **Project Settings → Database** if needed). |
 | Supabase warns that RLS is disabled on tables | That warning is about tables in `public`, which the Supabase API exposes. This project uses its own `marketplace` schema, which the API does not expose by default. |

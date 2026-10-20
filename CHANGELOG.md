@@ -14,13 +14,15 @@ All notable changes to the marketplace database. Each release maps to a CIT 406 
 - `tests/`: build check, logic layer tests, EXPLAIN ANALYZE performance tests and security tests.
 - A description on every table and column (`COMMENT ON`), `docs/data-dictionary.md` generated from them, and `scripts/generate_data_dictionary.sql`.
 - Updated ER diagram of the built schema (`docs/er-diagram.png`, `docs/er-diagram.md`).
+- Backup and restore guide (`docs/backup-restore.md`) using pg_dump and pg_restore.
+- Screenshots of the Supabase rebuild and of a full backup/restore cycle (`docs/evidence/`).
 - Step-by-step rebuild instructions in the README for psql, pgAdmin, the Supabase SQL Editor and Docker.
 
 ### Changed
 - `schema.sql` moved to `migrations/001_create_schema.sql`; its foreign-key indexes moved to `migrations/004_indexes.sql`.
 - `seed.sql` moved to `seed/seed.sql`; it now also resets `variant_audit` and loads the `app_user` mappings.
 - Module 4 build screenshots moved to `docs/module4-build/`.
-- `gitignore` renamed to `.gitignore` so Git actually uses it.
+- `gitignore` renamed to `.gitignore` so Git actually uses it; backup files (`*.backup`, `*.dump`) are ignored.
 
 ### Performance decision (Module 7)
 - Candidate indexes on `order_header(order_date)` and `product_variant(stock_quantity)` were tested and not kept: the planner still chose sequential scans on the small project tables.
